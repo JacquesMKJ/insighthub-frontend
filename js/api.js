@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────
 // Change this to your Render backend URL before deploying
-const API_BASE = 'https://insighthub-backend.onrender.com/api';
+const API_BASE = 'https://insighthub-backend-goqq.onrender.com';
 
 // ─── Token helpers ────────────────────────────────────────────
 const getToken = () => localStorage.getItem('ih_token');
