@@ -1,6 +1,6 @@
 // ─── Config ───────────────────────────────────────────────────
 // Change this to your Render backend URL before deploying
-const API_BASE = ' https://insighthub-backend-glsk.onrender.com';
+const API_BASE = ' https://insighthub-backend-glsk.onrender.com/api';
 
 // ─── Token helpers ────────────────────────────────────────────
 const getToken = () => localStorage.getItem('ih_token');
