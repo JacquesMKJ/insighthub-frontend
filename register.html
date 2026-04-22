@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — InsightHub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="auth-page">
+  <!-- Left Panel -->
+  <div class="auth-left">
+    <div>
+      <a href="index.html" class="nav-logo" style="font-size:1.8rem;">Insight<span style="color:var(--accent);font-style:italic;">Hub</span></a>
+      <h2 style="margin-top:48px;">Join the<br><em>Repository</em></h2>
+      <p style="margin-top:12px;">Share your research with the Academic City community and discover what your peers have built.</p>
+      <ul class="auth-features">
+        <li>Submit capstone projects and research papers</li>
+        <li>Get discovered by supervisors and recruiters</li>
+        <li>Connect with fellow researchers</li>
+        <li>Build a permanent academic portfolio</li>
+      </ul>
+    </div>
+    <div style="font-size:0.8rem;color:#3a3632;">
+      Already registered? <a href="login.html" style="color:var(--accent);">Log in →</a>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  <div class="auth-right">
+    <div class="auth-form-wrap">
+      <h3>Create Account</h3>
+      <p>Fill in your details to get started</p>
+
+      <div id="alert" class="alert"></div>
+
+      <form class="auth-form" id="register-form">
+        <div class="form-group">
+          <label class="form-label" for="name">Full Name</label>
+          <input type="text" id="name" class="form-input" placeholder="Kwame Mensah" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="email">Email Address</label>
+          <input type="email" id="email" class="form-input" placeholder="you@acity.edu.gh" required />
+          <span class="form-hint">Use your institutional email if required</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" placeholder="Min. 6 characters" required minlength="6" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="confirm">Confirm Password</label>
+          <input type="password" id="confirm" class="form-input" placeholder="Repeat password" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-lg" id="btn-submit" style="width:100%;">
+          Create Account
+        </button>
+      </form>
+
+      <div class="auth-switch">
+        Already have an account? <a href="login.html">Log in</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  if (isLoggedIn()) window.location.href = 'index.html';
+
+  document.getElementById('register-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit');
+
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm').value;
+
+    if (password !== confirm) {
+      return showAlert('alert', 'Passwords do not match.');
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating account...';
+
+    try {
+      const data = await api('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password }),
+      });
+      setAuth(data.token, data.user);
+      window.location.href = 'index.html';
+    } catch (err) {
+      showAlert('alert', err.message);
+      btn.disabled = false;
+      btn.textContent = 'Create Account';
+    }
+  });
+</script>
+</body>
+</html>

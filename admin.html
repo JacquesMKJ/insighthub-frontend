@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — InsightHub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <div class="admin-header">
+    <div class="container">
+      <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--accent);letter-spacing:0.1em;margin-bottom:8px;">// ADMIN PANEL</div>
+      <h2 style="color:#f5f2eb;">InsightHub Dashboard</h2>
+      <p style="color:#6b6560;font-size:0.875rem;margin-top:4px;">Manage submissions, moderate content, and monitor platform activity.</p>
+    </div>
+  </div>
+
+  <div style="padding:40px 0 80px;">
+    <div class="container">
+
+      <!-- Stats -->
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-num">—</div><div class="stat-label">Approved Projects</div></div>
+        <div class="stat-card"><div class="stat-num">—</div><div class="stat-label">Pending Review</div></div>
+        <div class="stat-card"><div class="stat-num">—</div><div class="stat-label">Total Students</div></div>
+        <div class="stat-card"><div class="stat-num">—</div><div class="stat-label">Comments</div></div>
+        <div class="stat-card"><div class="stat-num">—</div><div class="stat-label">Bookmarks</div></div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="loadProjects('pending')" id="tab-pending">⏳ Pending</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadProjects('approved')" id="tab-approved">✅ Approved</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadProjects('rejected')" id="tab-rejected">❌ Rejected</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadProjects()" id="tab-all">📋 All</button>
+      </div>
+
+      <div id="alert" class="alert mb-16"></div>
+
+      <!-- Table -->
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Author</th>
+              <th>Department</th>
+              <th>Year</th>
+              <th>Status</th>
+              <th>Submitted</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="projects-tbody">
+            <tr><td colspan="7" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto;"></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal" style="max-width:600px;">
+      <h3>Edit Project</h3>
+      <p>Update the project details below.</p>
+      <input type="hidden" id="edit-id" />
+      <div style="display:flex;flex-direction:column;gap:16px;margin-top:16px;">
+        <div class="form-group">
+          <label class="form-label">Title</label>
+          <input type="text" id="edit-title" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input type="text" id="edit-department" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Supervisor</label>
+          <input type="text" id="edit-supervisor" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Abstract</label>
+          <textarea id="edit-abstract" class="form-textarea" rows="4"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tags (comma-separated)</label>
+          <input type="text" id="edit-tags" class="form-input" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeEdit()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEdit()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>InsightHub &mdash; Admin Panel &copy; 2025</div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    renderNav('admin.html');
+    if (!requireAdmin()) throw new Error('redirect');
+
+    let currentStatus = 'pending';
+
+    // Load stats
+    const loadStats = async () => {
+      try {
+        const s = await api('/admin/stats');
+        const grid = document.getElementById('stats-grid');
+        grid.innerHTML = `
+          <div class="stat-card"><div class="stat-num" style="color:var(--green);">${s.approved_projects}</div><div class="stat-label">Approved Projects</div></div>
+          <div class="stat-card"><div class="stat-num" style="color:var(--yellow);">${s.pending_projects}</div><div class="stat-label">Pending Review</div></div>
+          <div class="stat-card"><div class="stat-num">${s.total_students}</div><div class="stat-label">Total Students</div></div>
+          <div class="stat-card"><div class="stat-num">${s.total_comments}</div><div class="stat-label">Comments</div></div>
+          <div class="stat-card"><div class="stat-num">${s.total_bookmarks}</div><div class="stat-label">Bookmarks</div></div>`;
+      } catch {}
+    };
+
+    // Load projects table
+    const loadProjects = async (status) => {
+      currentStatus = status;
+      // Update active tab button
+      ['pending','approved','rejected','all'].forEach(s => {
+        const btn = document.getElementById(`tab-${s}`);
+        if (btn) btn.className = `btn btn-sm ${s === (status || 'all') ? 'btn-primary' : 'btn-ghost'}`;
+      });
+
+      const tbody = document.getElementById('projects-tbody');
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto;"></div></td></tr>`;
+
+      try {
+        const url = status ? `/admin/projects?status=${status}` : '/admin/projects';
+        const projects = await api(url);
+
+        if (!projects.length) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--ink-muted);">No projects found.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = projects.map(p => `
+          <tr>
+            <td><a href="project.html?id=${p.id}" target="_blank" style="color:var(--accent);font-weight:500;max-width:240px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.title}</a></td>
+            <td>
+              <div>${p.author_name}</div>
+              <div style="font-size:0.75rem;color:var(--ink-muted);">${p.author_email}</div>
+            </td>
+            <td>${p.department}</td>
+            <td>${p.year}</td>
+            <td>${badgeHTML(p.status)}</td>
+            <td style="font-size:0.8rem;color:var(--ink-muted);">${formatDate(p.created_at)}</td>
+            <td>
+              <div class="admin-actions">
+                ${p.status !== 'approved' ? `<button class="btn btn-success btn-sm" onclick="setStatus(${p.id},'approved')">✅</button>` : ''}
+                ${p.status !== 'rejected' ? `<button class="btn btn-danger btn-sm" onclick="setStatus(${p.id},'rejected')">❌</button>` : ''}
+                ${p.status !== 'pending' ? `<button class="btn btn-ghost btn-sm" onclick="setStatus(${p.id},'pending')">↩️</button>` : ''}
+                <button class="btn btn-secondary btn-sm" onclick="openEdit(${JSON.stringify(p).replace(/"/g,'&quot;')})">✏️</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProject(${p.id})">🗑️</button>
+              </div>
+            </td>
+          </tr>`).join('');
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--red);">${err.message}</td></tr>`;
+      }
+    };
+
+    const setStatus = async (id, status) => {
+      try {
+        await api(`/admin/projects/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) });
+        showAlert('alert', `Project ${status} successfully.`, 'success');
+        loadProjects(currentStatus);
+        loadStats();
+      } catch (err) { showAlert('alert', err.message); }
+    };
+
+    const deleteProject = async (id) => {
+      if (!confirm('Permanently delete this project? This cannot be undone.')) return;
+      try {
+        await api(`/admin/projects/${id}`, { method: 'DELETE' });
+        showAlert('alert', 'Project deleted.', 'success');
+        loadProjects(currentStatus);
+        loadStats();
+      } catch (err) { showAlert('alert', err.message); }
+    };
+
+    const openEdit = (p) => {
+      document.getElementById('edit-id').value = p.id;
+      document.getElementById('edit-title').value = p.title;
+      document.getElementById('edit-department').value = p.department;
+      document.getElementById('edit-supervisor').value = p.supervisor;
+      document.getElementById('edit-abstract').value = p.abstract;
+      document.getElementById('edit-tags').value = (p.tags || []).join(', ');
+      document.getElementById('edit-modal').classList.add('open');
+    };
+    const closeEdit = () => document.getElementById('edit-modal').classList.remove('open');
+
+    const saveEdit = async () => {
+      const id = document.getElementById('edit-id').value;
+      const body = {
+        title: document.getElementById('edit-title').value,
+        department: document.getElementById('edit-department').value,
+        supervisor: document.getElementById('edit-supervisor').value,
+        abstract: document.getElementById('edit-abstract').value,
+        tags: document.getElementById('edit-tags').value,
+      };
+      try {
+        await api(`/admin/projects/${id}`, { method: 'PUT', body: JSON.stringify(body) });
+        showAlert('alert', 'Project updated.', 'success');
+        closeEdit();
+        loadProjects(currentStatus);
+      } catch (err) { showAlert('alert', err.message); }
+    };
+
+    loadStats();
+    loadProjects('pending');
+  </script>
+</body>
+</html>

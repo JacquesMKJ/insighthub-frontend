@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Project — InsightHub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <div id="page-content">
+    <div class="loading-wrap"><div class="spinner"></div></div>
+  </div>
+
+  <!-- Contact Modal -->
+  <div class="modal-overlay" id="contact-modal">
+    <div class="modal">
+      <h3>Request Access / Contact Author</h3>
+      <p>Send a message to the project author. They will receive your details and message.</p>
+      <div id="contact-alert" class="alert"></div>
+      <div class="form-group mt-16">
+        <label class="form-label">Your Message</label>
+        <textarea id="contact-message" class="form-textarea" rows="4" placeholder="Hi, I'm interested in your project and would like to..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-send-contact">Send Request</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>InsightHub &mdash; Academic City University &copy; 2025</div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    renderNav();
+
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get('id');
+    if (!projectId) window.location.href = 'index.html';
+
+    let project = null;
+    let isBookmarked = false;
+
+    const loadProject = async () => {
+      try {
+        project = await api(`/projects/${projectId}`);
+        document.title = `${project.title} — InsightHub`;
+        renderProject();
+        loadComments();
+        if (isLoggedIn()) checkBookmark();
+      } catch {
+        document.getElementById('page-content').innerHTML = `
+          <div class="container" style="padding:80px 0;text-align:center;">
+            <h2>Project not found</h2>
+            <p class="text-muted mt-16">This project may not exist or hasn't been approved yet.</p>
+            <a href="index.html" class="btn btn-primary mt-24">← Back to Browse</a>
+          </div>`;
+      }
+    };
+
+    const renderProject = () => {
+      document.getElementById('page-content').innerHTML = `
+        <!-- Page Header -->
+        <div class="page-header">
+          <div class="page-header-inner">
+            <div class="breadcrumb"><a href="index.html">Home</a> / ${project.department} / Project</div>
+            <h1 style="font-size:clamp(1.5rem,4vw,2.8rem);max-width:800px;">${project.title}</h1>
+            <div style="display:flex;align-items:center;gap:16px;margin-top:16px;flex-wrap:wrap;">
+              ${badgeHTML(project.status)}
+              <span style="color:#b5afa8;font-size:0.875rem;">By <strong style="color:#f5f2eb;">${project.author_name}</strong></span>
+              <span style="color:#6b6560;font-size:0.875rem;">${formatDate(project.created_at)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detail Grid -->
+        <div class="container">
+          <div class="project-detail-grid">
+
+            <!-- Main -->
+            <div class="project-detail-main">
+
+              <!-- Abstract -->
+              <div class="card">
+                <h4 style="font-family:var(--font-mono);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-muted);margin-bottom:16px;">Abstract</h4>
+                <p style="line-height:1.8;">${project.abstract}</p>
+              </div>
+
+              <!-- Tags & Technologies -->
+              ${(project.tags?.length || project.technology?.length) ? `
+              <div class="card">
+                ${project.tags?.length ? `
+                  <div class="mb-16">
+                    <div class="sidebar-title">Tags</div>
+                    <div class="project-tags">${tagHTML(project.tags)}</div>
+                  </div>` : ''}
+                ${project.technology?.length ? `
+                  <div>
+                    <div class="sidebar-title">Technologies</div>
+                    <div class="project-tags">${project.technology.map(t => `<span class="tag" style="background:var(--accent-light);color:var(--accent-2);">${t}</span>`).join('')}</div>
+                  </div>` : ''}
+              </div>` : ''}
+
+              <!-- Actions -->
+              ${isLoggedIn() ? `
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" id="btn-bookmark" onclick="toggleBookmark()">
+                  <span id="bookmark-icon">🔖</span> <span id="bookmark-label">Bookmark</span>
+                </button>
+                <button class="btn btn-primary" onclick="openModal()">✉️ Contact Author</button>
+                ${project.file_url ? `<a href="${API_BASE.replace('/api','')}${project.file_url}" target="_blank" class="btn btn-ghost">📄 View PDF</a>` : ''}
+                ${project.video_url ? `<a href="${project.video_url}" target="_blank" class="btn btn-ghost">▶️ Watch Demo</a>` : ''}
+              </div>` : `
+              <div class="card" style="background:var(--accent-light);border-color:var(--accent);">
+                <p style="font-size:0.875rem;"><strong>Want to bookmark or contact the author?</strong><br>
+                <a href="login.html" style="color:var(--accent);font-weight:600;">Log in</a> or <a href="register.html" style="color:var(--accent);font-weight:600;">create an account</a> to engage with this project.</p>
+              </div>`}
+
+              <!-- Comments -->
+              <div>
+                <div class="section-header">
+                  <h2 style="font-size:1.4rem;">Comments & Feedback</h2>
+                </div>
+
+                ${isLoggedIn() ? `
+                <div class="card mb-24" style="padding:20px;">
+                  <div id="comment-alert" class="alert mb-16"></div>
+                  <div class="form-group">
+                    <label class="form-label">Leave a Comment</label>
+                    <textarea id="comment-input" class="form-textarea" rows="3" placeholder="Share your thoughts or feedback on this project..."></textarea>
+                  </div>
+                  <button class="btn btn-primary btn-sm mt-8" id="btn-comment" onclick="postComment()">Post Comment</button>
+                </div>` : ''}
+
+                <div id="comments-list">
+                  <div class="spinner" style="margin:20px auto;"></div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Sidebar -->
+            <div class="project-sidebar">
+              <div class="card">
+                <div class="sidebar-title">Project Details</div>
+                <div class="info-list">
+                  <div class="info-item">
+                    <span class="label">Author</span>
+                    <span class="value">${project.author_name}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Department</span>
+                    <span class="value">${project.department}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Supervisor</span>
+                    <span class="value">${project.supervisor}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Year</span>
+                    <span class="value">${project.year}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Submitted</span>
+                    <span class="value">${formatDate(project.created_at)}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Status</span>
+                    <span class="value">${badgeHTML(project.status)}</span>
+                  </div>
+                </div>
+              </div>
+
+              ${project.file_url || project.video_url ? `
+              <div class="card">
+                <div class="sidebar-title">Resources</div>
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                  ${project.file_url ? `<a href="${API_BASE.replace('/api','')}${project.file_url}" target="_blank" class="btn btn-secondary btn-sm">📄 Download PDF</a>` : ''}
+                  ${project.video_url ? `<a href="${project.video_url}" target="_blank" class="btn btn-secondary btn-sm">▶️ View Demo</a>` : ''}
+                </div>
+              </div>` : ''}
+            </div>
+
+          </div>
+        </div>`;
+    };
+
+    const loadComments = async () => {
+      try {
+        const comments = await api(`/comments/${projectId}`);
+        const el = document.getElementById('comments-list');
+        if (!el) return;
+        if (comments.length === 0) {
+          el.innerHTML = `<p class="text-muted text-sm">No comments yet. Be the first to leave feedback!</p>`;
+          return;
+        }
+        el.innerHTML = `<div class="comments-list">
+          ${comments.map(c => `
+            <div class="comment-item">
+              <div class="comment-header">
+                <span class="comment-author">${c.author_name}</span>
+                <span class="comment-date">${formatDate(c.created_at)}</span>
+              </div>
+              <div class="comment-content">${c.content}</div>
+            </div>`).join('')}
+        </div>`;
+      } catch {}
+    };
+
+    const postComment = async () => {
+      const content = document.getElementById('comment-input')?.value.trim();
+      if (!content) return;
+      const btn = document.getElementById('btn-comment');
+      btn.disabled = true;
+      try {
+        await api(`/comments/${projectId}`, { method: 'POST', body: JSON.stringify({ content }) });
+        document.getElementById('comment-input').value = '';
+        loadComments();
+      } catch (err) {
+        showAlert('comment-alert', err.message);
+      } finally { btn.disabled = false; }
+    };
+
+    const checkBookmark = async () => {
+      try {
+        const { bookmarked } = await api(`/bookmarks/check/${projectId}`);
+        isBookmarked = bookmarked;
+        updateBookmarkUI();
+      } catch {}
+    };
+
+    const toggleBookmark = async () => {
+      try {
+        if (isBookmarked) {
+          await api(`/bookmarks/${projectId}`, { method: 'DELETE' });
+          isBookmarked = false;
+        } else {
+          await api(`/bookmarks/${projectId}`, { method: 'POST' });
+          isBookmarked = true;
+        }
+        updateBookmarkUI();
+      } catch (err) { alert(err.message); }
+    };
+
+    const updateBookmarkUI = () => {
+      const icon = document.getElementById('bookmark-icon');
+      const label = document.getElementById('bookmark-label');
+      if (!icon) return;
+      icon.textContent = isBookmarked ? '✅' : '🔖';
+      label.textContent = isBookmarked ? 'Bookmarked' : 'Bookmark';
+    };
+
+    const openModal = () => { document.getElementById('contact-modal').classList.add('open'); };
+    const closeModal = () => { document.getElementById('contact-modal').classList.remove('open'); };
+
+    document.getElementById('btn-send-contact')?.addEventListener('click', async () => {
+      const message = document.getElementById('contact-message').value.trim();
+      if (!message) return;
+      const btn = document.getElementById('btn-send-contact');
+      btn.disabled = true;
+      try {
+        await api(`/contact/${projectId}`, { method: 'POST', body: JSON.stringify({ message }) });
+        showAlert('contact-alert', '✅ Request sent successfully!', 'success');
+        document.getElementById('contact-message').value = '';
+        setTimeout(closeModal, 2000);
+      } catch (err) {
+        showAlert('contact-alert', err.message);
+      } finally { btn.disabled = false; }
+    });
+
+    loadProject();
+  </script>
+</body>
+</html>

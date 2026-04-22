@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Profile — InsightHub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <div class="profile-header">
+    <div class="profile-header-inner">
+      <div class="profile-avatar" id="avatar-initials">?</div>
+      <div class="profile-info">
+        <h2 id="profile-name">Loading...</h2>
+        <p id="profile-email"></p>
+        <p id="profile-joined" style="color:#3a3632;margin-top:4px;"></p>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 40px 0 80px;">
+    <div class="container">
+
+      <!-- Tabs -->
+      <div class="profile-tabs">
+        <button class="tab-btn active" onclick="switchTab('submissions')">My Submissions</button>
+        <button class="tab-btn" onclick="switchTab('bookmarks')">Bookmarks</button>
+        <button class="tab-btn" onclick="switchTab('requests')">Contact Requests</button>
+      </div>
+
+      <!-- Submissions Tab -->
+      <div class="tab-content active" id="tab-submissions">
+        <div class="flex-between mb-24">
+          <h3 style="font-size:1.2rem;">My Submitted Projects</h3>
+          <a href="submit.html" class="btn btn-primary btn-sm">+ New Submission</a>
+        </div>
+        <div id="submissions-list"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Bookmarks Tab -->
+      <div class="tab-content" id="tab-bookmarks">
+        <h3 style="font-size:1.2rem;margin-bottom:24px;">Saved Projects</h3>
+        <div id="bookmarks-list"><div class="spinner"></div></div>
+      </div>
+
+      <!-- Contact Requests Tab -->
+      <div class="tab-content" id="tab-requests">
+        <h3 style="font-size:1.2rem;margin-bottom:24px;">Received Access Requests</h3>
+        <div id="requests-list"><div class="spinner"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>InsightHub &mdash; Academic City University &copy; 2025</div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    renderNav('profile.html');
+    if (!requireLogin()) throw new Error('redirect');
+
+    const user = getUser();
+
+    // Render profile header
+    document.getElementById('profile-name').textContent = user.name;
+    document.getElementById('profile-email').textContent = user.email;
+    document.getElementById('avatar-initials').textContent = user.name.charAt(0).toUpperCase();
+
+    // Tab switching
+    const switchTab = (name) => {
+      document.querySelectorAll('.tab-btn').forEach((b, i) => {
+        const names = ['submissions', 'bookmarks', 'requests'];
+        b.classList.toggle('active', names[i] === name);
+      });
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById(`tab-${name}`).classList.add('active');
+    };
+
+    // Load submissions
+    const loadSubmissions = async () => {
+      const el = document.getElementById('submissions-list');
+      try {
+        const projects = await api('/projects/my/submissions');
+        if (!projects.length) {
+          el.innerHTML = emptyState('📝', 'No submissions yet', 'Submit your first project to get started.',
+            `<a href="submit.html" class="btn btn-primary">Submit a Project</a>`);
+          return;
+        }
+        el.innerHTML = `<div class="projects-grid">
+          ${projects.map(p => `
+            <div class="card project-card">
+              <div class="project-card-header">
+                <h3><a href="project.html?id=${p.id}" style="color:inherit;">${p.title}</a></h3>
+                ${badgeHTML(p.status)}
+              </div>
+              <div class="project-meta">
+                <span>🏛️ ${p.department}</span>
+                <span>📅 ${p.year}</span>
+              </div>
+              <p class="project-abstract">${p.abstract}</p>
+              <div class="project-footer">
+                <span class="text-sm text-muted">Submitted ${formatDate(p.created_at)}</span>
+                ${p.status === 'pending' ? `<span class="text-sm text-muted font-mono">⏳ Awaiting review</span>` : ''}
+              </div>
+            </div>`).join('')}
+        </div>`;
+      } catch (err) {
+        el.innerHTML = `<p class="text-muted">${err.message}</p>`;
+      }
+    };
+
+    // Load bookmarks
+    const loadBookmarks = async () => {
+      const el = document.getElementById('bookmarks-list');
+      try {
+        const projects = await api('/bookmarks');
+        if (!projects.length) {
+          el.innerHTML = emptyState('🔖', 'No bookmarks yet', 'Browse projects and bookmark the ones you want to revisit.',
+            `<a href="index.html" class="btn btn-primary">Browse Projects</a>`);
+          return;
+        }
+        el.innerHTML = `<div class="projects-grid">
+          ${projects.map(p => `
+            <a href="project.html?id=${p.id}" class="card card-link project-card" style="text-decoration:none;color:inherit;">
+              <div class="project-card-header">
+                <h3>${p.title}</h3>
+                ${badgeHTML(p.status)}
+              </div>
+              <div class="project-meta">
+                <span>🏛️ ${p.department}</span>
+                <span>📅 ${p.year}</span>
+              </div>
+              <p class="project-abstract">${p.abstract}</p>
+              <div class="project-footer">
+                <span class="project-author">By <strong>${p.author_name}</strong></span>
+                <span class="text-sm text-muted">Saved ${formatDate(p.bookmarked_at)}</span>
+              </div>
+            </a>`).join('')}
+        </div>`;
+      } catch (err) {
+        el.innerHTML = `<p class="text-muted">${err.message}</p>`;
+      }
+    };
+
+    // Load contact requests received
+    const loadRequests = async () => {
+      const el = document.getElementById('requests-list');
+      try {
+        const requests = await api('/contact/received');
+        if (!requests.length) {
+          el.innerHTML = emptyState('✉️', 'No requests received', 'When someone contacts you about your project, it will appear here.');
+          return;
+        }
+        el.innerHTML = `<div style="display:flex;flex-direction:column;gap:16px;">
+          ${requests.map(r => `
+            <div class="card" style="padding:20px;">
+              <div class="flex-between mb-8">
+                <div>
+                  <strong>${r.sender_name}</strong>
+                  <span class="text-muted text-sm"> &mdash; ${r.sender_email}</span>
+                </div>
+                <span class="text-sm text-muted font-mono">${formatDate(r.created_at)}</span>
+              </div>
+              <div class="text-sm text-muted mb-8">Re: <a href="project.html?id=${r.project_id}" style="color:var(--accent);">${r.project_title}</a></div>
+              <p style="font-size:0.9rem;line-height:1.6;background:var(--bg);padding:12px;border-radius:var(--radius);border:1px solid var(--border);">${r.message}</p>
+            </div>`).join('')}
+        </div>`;
+      } catch (err) {
+        el.innerHTML = `<p class="text-muted">${err.message}</p>`;
+      }
+    };
+
+    loadSubmissions();
+    loadBookmarks();
+    loadRequests();
+  </script>
+</body>
+</html>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InsightHub — Academic Research Repository</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-label">// Academic City University</div>
+      <h1>Where Student Research<br><em>Finds Its Audience</em></h1>
+      <p>Discover, explore, and build upon groundbreaking capstone projects and research papers from the ACity community.</p>
+      <div class="hero-actions">
+        <a href="#browse" class="btn btn-primary btn-lg">Browse Projects</a>
+        <a href="submit.html" class="btn btn-lg btn-secondary" style="color:#f5f2eb;border-color:rgba(245,242,235,0.3)">Submit Your Work</a>
+      </div>
+      <div class="hero-stats">
+        <div>
+          <div class="hero-stat-num" id="stat-projects">—</div>
+          <div class="hero-stat-label">Projects Published</div>
+        </div>
+        <div>
+          <div class="hero-stat-num" id="stat-students">—</div>
+          <div class="hero-stat-label">Students</div>
+        </div>
+        <div>
+          <div class="hero-stat-num" id="stat-comments">—</div>
+          <div class="hero-stat-label">Engagements</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Browse -->
+  <section id="browse" style="padding: 48px 0 80px;">
+    <div class="container">
+
+      <!-- Search Bar -->
+      <div class="search-bar">
+        <div class="form-group" style="flex:2;min-width:220px;">
+          <label class="form-label">Search</label>
+          <input type="text" id="search-keyword" class="form-input" placeholder="Keywords, tags, title..." />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select id="filter-dept" class="form-select">
+            <option value="">All Departments</option>
+            <option>Computer Science</option>
+            <option>Information Technology</option>
+            <option>Business Administration</option>
+            <option>Engineering</option>
+            <option>Mathematics</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Year</label>
+          <select id="filter-year" class="form-select">
+            <option value="">All Years</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Technology</label>
+          <input type="text" id="filter-tech" class="form-input" placeholder="e.g. React, Python..." />
+        </div>
+        <button class="btn btn-primary" id="btn-search">Search</button>
+        <button class="btn btn-ghost" id="btn-reset">Reset</button>
+      </div>
+
+      <!-- Results Header -->
+      <div class="section-header">
+        <h2>Research Projects</h2>
+        <span class="section-count" id="results-count">Loading...</span>
+      </div>
+
+      <!-- Grid -->
+      <div id="projects-grid">
+        <div class="loading-wrap"><div class="spinner"></div></div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div>InsightHub &mdash; Academic City University &copy; 2025 &mdash; Built for IT2239 Web Technologies</div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    renderNav('index.html');
+
+    // Populate year filter
+    const yearSel = document.getElementById('filter-year');
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear; y >= 2018; y--) {
+      yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+
+    let debounceTimer;
+
+    // Load projects
+    const loadProjects = async () => {
+      const keyword = document.getElementById('search-keyword').value.trim();
+      const department = document.getElementById('filter-dept').value;
+      const year = document.getElementById('filter-year').value;
+      const technology = document.getElementById('filter-tech').value.trim();
+
+      const params = new URLSearchParams();
+      if (keyword) params.set('keyword', keyword);
+      if (department) params.set('department', department);
+      if (year) params.set('year', year);
+      if (technology) params.set('technology', technology);
+
+      document.getElementById('projects-grid').innerHTML = spinner();
+
+      try {
+        const projects = await api(`/projects?${params}`);
+        document.getElementById('results-count').textContent = `${projects.length} project${projects.length !== 1 ? 's' : ''} found`;
+
+        if (projects.length === 0) {
+          document.getElementById('projects-grid').innerHTML = emptyState(
+            '📭', 'No Projects Found',
+            'Try adjusting your search filters.',
+            `<button class="btn btn-primary" onclick="resetFilters()">Clear Filters</button>`
+          );
+          return;
+        }
+
+        document.getElementById('projects-grid').innerHTML = `
+          <div class="projects-grid">
+            ${projects.map(p => `
+              <a href="project.html?id=${p.id}" class="card card-link project-card" style="text-decoration:none;color:inherit;">
+                <div class="project-card-header">
+                  <h3>${p.title}</h3>
+                  ${badgeHTML(p.status)}
+                </div>
+                <div class="project-meta">
+                  <span>🏛️ ${p.department}</span>
+                  <span>📅 ${p.year}</span>
+                </div>
+                <p class="project-abstract">${p.abstract}</p>
+                <div class="project-tags">
+                  ${tagHTML(p.tags?.slice(0, 3))}
+                  ${(p.tags?.length > 3) ? `<span class="tag">+${p.tags.length - 3}</span>` : ''}
+                </div>
+                <div class="project-footer">
+                  <span class="project-author">By <strong>${p.author_name}</strong></span>
+                  <span class="text-sm text-muted">${formatDate(p.created_at)}</span>
+                </div>
+              </a>
+            `).join('')}
+          </div>`;
+      } catch (err) {
+        document.getElementById('projects-grid').innerHTML = emptyState('⚠️', 'Failed to load', err.message);
+      }
+    };
+
+    const resetFilters = () => {
+      document.getElementById('search-keyword').value = '';
+      document.getElementById('filter-dept').value = '';
+      document.getElementById('filter-year').value = '';
+      document.getElementById('filter-tech').value = '';
+      loadProjects();
+    };
+
+    document.getElementById('btn-search').addEventListener('click', loadProjects);
+    document.getElementById('btn-reset').addEventListener('click', resetFilters);
+    document.getElementById('search-keyword').addEventListener('keydown', e => {
+      if (e.key === 'Enter') loadProjects();
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(loadProjects, 600);
+    });
+
+    // Load stats
+    const loadStats = async () => {
+      try {
+        if (isAdmin()) {
+          const stats = await api('/admin/stats');
+          document.getElementById('stat-projects').textContent = stats.approved_projects;
+          document.getElementById('stat-students').textContent = stats.total_students;
+          document.getElementById('stat-comments').textContent = stats.total_comments + stats.total_bookmarks;
+        }
+      } catch {}
+    };
+
+    loadProjects();
+    if (isLoggedIn() && isAdmin()) loadStats();
+  </script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submit Project — InsightHub</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <div id="navbar"></div>
+
+  <div class="page-header">
+    <div class="page-header-inner">
+      <div class="breadcrumb"><a href="index.html">Home</a> / Submit Project</div>
+      <h1>Submit Your Project</h1>
+      <p>Share your research or capstone project with the Academic City community. All submissions are reviewed before publication.</p>
+    </div>
+  </div>
+
+  <div class="submit-page">
+    <div class="container-sm">
+      <div id="alert" class="alert mt-16"></div>
+
+      <form class="submit-form" id="submit-form" enctype="multipart/form-data">
+
+        <!-- Title -->
+        <div class="form-group">
+          <label class="form-label" for="title">Project Title *</label>
+          <input type="text" id="title" class="form-input" placeholder="e.g. Real-Time Traffic Monitoring Using Computer Vision" required />
+        </div>
+
+        <!-- Abstract -->
+        <div class="form-group">
+          <label class="form-label" for="abstract">Abstract / Description *</label>
+          <textarea id="abstract" class="form-textarea" rows="5" placeholder="Provide a clear overview of your project, its objectives, methodology, and key findings..." required style="min-height:140px;"></textarea>
+        </div>
+
+        <!-- Department + Supervisor -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="department">Department *</label>
+            <select id="department" class="form-select" required>
+              <option value="">Select department...</option>
+              <option>Computer Science</option>
+              <option>Information Technology</option>
+              <option>Business Administration</option>
+              <option>Engineering</option>
+              <option>Mathematics</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="supervisor">Supervisor *</label>
+            <input type="text" id="supervisor" class="form-input" placeholder="e.g. Dr. Kimkpe Arnold" required />
+          </div>
+        </div>
+
+        <!-- Year + Video -->
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label" for="year">Year of Completion *</label>
+            <select id="year" class="form-select" required>
+              <option value="">Select year...</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="video_url">Video / Demo Link</label>
+            <input type="url" id="video_url" class="form-input" placeholder="https://youtube.com/..." />
+          </div>
+        </div>
+
+        <!-- Tags -->
+        <div class="form-group">
+          <label class="form-label" for="tags">Tags</label>
+          <input type="text" id="tags" class="form-input" placeholder="machine learning, web app, IoT (comma-separated)" />
+          <span class="form-hint">Helps others discover your project via search</span>
+        </div>
+
+        <!-- Technologies -->
+        <div class="form-group">
+          <label class="form-label" for="technology">Technologies Used</label>
+          <input type="text" id="technology" class="form-input" placeholder="React, Node.js, PostgreSQL, Python (comma-separated)" />
+        </div>
+
+        <!-- File Upload -->
+        <div class="form-group">
+          <label class="form-label">Project File (PDF)</label>
+          <div class="file-upload-area" id="file-drop-area">
+            <div class="file-upload-icon">📄</div>
+            <div class="file-upload-text" id="file-upload-text">
+              Click to upload or drag & drop your PDF<br>
+              <span style="font-size:0.75rem;color:var(--ink-faint);">Max 10MB</span>
+            </div>
+            <input type="file" id="file" accept=".pdf" style="display:none;" />
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div style="display:flex;gap:12px;align-items:center;">
+          <button type="submit" class="btn btn-primary btn-lg" id="btn-submit">Submit Project</button>
+          <a href="index.html" class="btn btn-ghost btn-lg">Cancel</a>
+        </div>
+
+        <p class="text-sm text-muted">
+          ℹ️ Your project will be reviewed by an admin before it appears publicly on InsightHub.
+        </p>
+
+      </form>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>InsightHub &mdash; Academic City University &copy; 2025</div>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    renderNav('submit.html');
+    requireLogin();
+
+    // Populate year dropdown
+    const yearSel = document.getElementById('year');
+    const cur = new Date().getFullYear();
+    for (let y = cur; y >= 2018; y--) {
+      yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+
+    // File upload UI
+    const fileInput = document.getElementById('file');
+    const dropArea = document.getElementById('file-drop-area');
+
+    dropArea.addEventListener('click', () => fileInput.click());
+    dropArea.addEventListener('dragover', e => { e.preventDefault(); dropArea.style.borderColor = 'var(--accent)'; });
+    dropArea.addEventListener('dragleave', () => dropArea.style.borderColor = '');
+    dropArea.addEventListener('drop', e => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file && file.type === 'application/pdf') {
+        fileInput.files = e.dataTransfer.files;
+        updateFileUI(file.name);
+      }
+    });
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) updateFileUI(fileInput.files[0].name);
+    });
+    const updateFileUI = (name) => {
+      dropArea.classList.add('has-file');
+      document.getElementById('file-upload-text').innerHTML = `✅ <strong>${name}</strong><br><span style="font-size:0.75rem;">Click to change</span>`;
+    };
+
+    // Submit
+    document.getElementById('submit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-submit');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const formData = new FormData();
+      formData.append('title', document.getElementById('title').value.trim());
+      formData.append('abstract', document.getElementById('abstract').value.trim());
+      formData.append('department', document.getElementById('department').value);
+      formData.append('supervisor', document.getElementById('supervisor').value.trim());
+      formData.append('year', document.getElementById('year').value);
+      formData.append('tags', document.getElementById('tags').value.trim());
+      formData.append('technology', document.getElementById('technology').value.trim());
+      formData.append('video_url', document.getElementById('video_url').value.trim());
+      if (fileInput.files[0]) formData.append('file', fileInput.files[0]);
+
+      try {
+        await api('/projects', { method: 'POST', body: formData });
+        showAlert('alert', '✅ Project submitted! It will appear publicly after admin review.', 'success');
+        document.getElementById('submit-form').reset();
+        dropArea.classList.remove('has-file');
+        document.getElementById('file-upload-text').innerHTML = `Click to upload or drag & drop your PDF<br><span style="font-size:0.75rem;color:var(--ink-faint);">Max 10MB</span>`;
+      } catch (err) {
+        showAlert('alert', err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Submit Project';
+      }
+    });
+  </script>
+</body>
+</html>
