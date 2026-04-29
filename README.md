@@ -21,11 +21,9 @@ frontend/
 
 ## ⚙️ Configuration (IMPORTANT)
 
-Before deploying, open `js/api.js` and update the `API_BASE` constant to your Render backend URL:
-
 ```javascript
 // js/api.js — line 2
-const API_BASE = 'https://YOUR-APP-NAME.onrender.com/api';
+const API_BASE = 'https://insighthub-backend-glsk.onrender.com/api';
 ```
 
 ## 🖥️ Running Locally
@@ -49,9 +47,9 @@ npx serve .
 1. Push this folder to a **public GitHub repository**
 2. Go to **Settings → Pages**
 3. Set Source: `Deploy from a branch` → `main` → `/ (root)`
-4. Your site will be live at: `https://yourusername.github.io/insighthub-frontend/`
+4. Your site will be live at: `https://jacquesmkj.github.io/insighthub-frontend/`
 
-> ⚠️ Make sure `API_BASE` in `js/api.js` points to your live Render backend before pushing.
+
 
 ## 🔐 Pages & Access
 
@@ -71,8 +69,3 @@ npx serve .
 |------|-------|----------|
 | Student | testuser@acity.edu.gh | password123 |
 | Admin | admin@acity.edu.gh | admin123 |
-
-> To make a user admin, run this SQL on your Render PostgreSQL database:
-> ```sql
-> UPDATE users SET role = 'admin' WHERE email = 'admin@acity.edu.gh';
-> ```
